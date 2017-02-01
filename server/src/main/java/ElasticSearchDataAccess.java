@@ -1,5 +1,6 @@
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
@@ -11,6 +12,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by Said on 1/22/2017.
@@ -54,11 +56,11 @@ public class ElasticSearchDataAccess {
         logger.info(String.format("closed connection to: %1$s", _clusterName));
     }
 
-    public RestStatus InsertDocument(String indexName, String jsonDoc)
+    public RestStatus InsertDocument(String indexName, String typeName, String jsonDoc)
     {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
-        IndexResponse response = _client.prepareIndex(indexName, "test")
+        IndexResponse response = _client.prepareIndex(indexName, typeName)
                 .setSource(jsonDoc)
                 .get();
 
@@ -68,9 +70,19 @@ public class ElasticSearchDataAccess {
         long version = response.getVersion();
         RestStatus restStatus = response.status();
 
-        logger.info(String.format("index: %1$20s%ntype: %2$20s%nId: %3$15s%nversion: %4$15s%nrest status: %5$20s",
+        logger.info(String.format("index: %1$13s%ntype: %2$13s%nId: %3$31s%nversion: %4$7s%nrest status: %5$9s",
                 index, type, id, version, restStatus));
 
         return restStatus;
+    }
+
+    public Map<String, Object> GetDocument(String indexName, String typeName, String id)
+    {
+        logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
+
+        GetResponse response = _client.prepareGet(indexName, typeName, id).get();
+        logger.info(String.format("source json: %1$70s", response.getSource().toString()));
+
+        return response.getSource();
     }
 }
