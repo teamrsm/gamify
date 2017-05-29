@@ -1,9 +1,10 @@
-package com.gamify;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.get.MultiGetItemResponse;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -27,14 +28,17 @@ import java.util.concurrent.ExecutionException;
 /**
  * Created by Said on 1/22/2017.
  */
+// ToDo: Rename to ElasticConnection
 public class ElasticSearchDataAccess {
 
     private static Logger logger = LogManager.getLogger(ElasticSearchDataAccess.class.getName());
 
     // ToDo: Refactor out Search / Insert / Update / Delete.. Return client as global?
+    // ToDo: Get your braces in order.
     private String _clusterName;
     private List<String> _nodeNames = new ArrayList<String>();
     private TransportClient _client;
+    private BulkRequest _bulkRequest = null;
 
     public ElasticSearchDataAccess(String clusterName, List<String> nodeNames)
     {
@@ -114,10 +118,10 @@ public class ElasticSearchDataAccess {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         BulkIndexByScrollResponse response =
-            DeleteByQueryAction.INSTANCE.newRequestBuilder(_client)
-                .filter(QueryBuilders.matchQuery(field, matchText))
-                .source(indexName)
-                .get();
+                DeleteByQueryAction.INSTANCE.newRequestBuilder(_client)
+                        .filter(QueryBuilders.matchQuery(field, matchText))
+                        .source(indexName)
+                        .get();
         logger.info(String.format("No. Deleted documents: %1$20s", response.getDeleted()));
 
         return response.getDeleted();
@@ -127,7 +131,7 @@ public class ElasticSearchDataAccess {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         UpdateRequest updateRequest = new UpdateRequest(indexName, typeName, id)
-            .doc(updateJson);
+                .doc(updateJson);
 
         _client.update(updateRequest).get();
     }
@@ -139,12 +143,67 @@ public class ElasticSearchDataAccess {
          * will be used to index the fresh document. */
 
         IndexRequest indexRequest = new IndexRequest(indexName, typeName, id)
-            .source(updateJson);
+                .source(updateJson);
 
         UpdateRequest updateRequest = new UpdateRequest(indexName, typeName, id)
-            .doc(updateJson)
-            .upsert(indexRequest);
+                .doc(updateJson)
+                .upsert(indexRequest);
 
         _client.update(updateRequest).get();
+    }
+
+    public String[] GetMultipleDocuments(String indexName, String typeName, String idList) {
+        logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
+
+        String[] ids = idList.split(",|;");
+        String[] documents = new String[ids.length];
+        int documentsIndex = 0;
+
+        MultiGetResponse multiGetItemResponses = _client.prepareMultiGet()
+                .add(indexName, typeName, ids)
+                .get();
+
+        for (MultiGetItemResponse itemResponse : multiGetItemResponses) {
+            GetResponse response = itemResponse.getResponse();
+            if (response.isExists()) {
+                documents[documentsIndex] = response.getSourceAsString();
+                documentsIndex++;
+            }
+        }
+
+        return documents;
+    }
+
+    public void PrepareBulkUpsertRequest(String indexName, String typeName, String id, String json) {
+        logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
+
+        if (_bulkRequest == null) {
+            _bulkRequest = new BulkRequest(_client);
+        }
+
+        _bulkRequest.AddUpsertRequest(indexName, typeName, id, json);
+    }
+
+    public void PrepareBulkDeleteRequest(String indexName, String typeName, String id) {
+        logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
+
+        if (_bulkRequest == null) {
+            _bulkRequest = new BulkRequest(_client);
+        }
+
+        _bulkRequest.AddDeleteRequest(indexName, typeName, id);
+    }
+
+    public String ExecuteBulkRequest() {
+        logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
+
+        BulkResponse response = null;
+
+        if (_bulkRequest != null) {
+            response = _bulkRequest.ExecuteBulkRequest();
+            _bulkRequest = null;
+        }
+
+        return response.toString();
     }
 }

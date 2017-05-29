@@ -1,5 +1,3 @@
-package com.gamify;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 
