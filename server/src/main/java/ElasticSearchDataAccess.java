@@ -27,9 +27,10 @@ import java.util.concurrent.ExecutionException;
 
 /**
  * Created by Said on 1/22/2017.
+ * Default access is limited to package
  */
 // ToDo: Rename to ElasticConnection
-public class ElasticSearchDataAccess {
+class ElasticSearchDataAccess {
 
     private static Logger logger = LogManager.getLogger(ElasticSearchDataAccess.class.getName());
 
@@ -37,17 +38,23 @@ public class ElasticSearchDataAccess {
     // ToDo: Get your braces in order.
     private String _clusterName;
     private List<String> _nodeNames = new ArrayList<String>();
-    private TransportClient _client;
     private BulkRequest _bulkRequest = null;
+    private int _numOfNodes;
 
-    public ElasticSearchDataAccess(String clusterName, List<String> nodeNames)
+    private TransportClient _client;
+    TransportClient GetClient()
     {
+        return _client;
+    }
+
+    ElasticSearchDataAccess(String clusterName, List<String> nodeNames) {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
         _clusterName = clusterName;
         _nodeNames = nodeNames;
+        _numOfNodes = nodeNames.size();
     }
 
-    public void ConnectToCluster() throws UnknownHostException {
+    void ConnectToCluster() throws UnknownHostException {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         //ToDo: Install x-pack and authentic users
@@ -62,17 +69,17 @@ public class ElasticSearchDataAccess {
             _client.addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName(node), 9300));
             logger.info(String.format("cluster name: %1$20s%nnode: %2$18s", _clusterName, node));
         }
+
+        _numOfNodes = _client.listedNodes().size();
     }
 
-    public void CloseConnection()
-    {
+    void CloseConnection() {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
         _client.close();
         logger.info(String.format("closed connection to: %1$s", _clusterName));
     }
 
-    public String InsertDocument(String indexName, String typeName, String jsonDoc)
-    {
+    String InsertDocument(String indexName, String typeName, String jsonDoc) {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         IndexResponse response = _client.prepareIndex(indexName, typeName)
@@ -91,8 +98,7 @@ public class ElasticSearchDataAccess {
         return id;
     }
 
-    public Map<String, Object> GetDocument(String indexName, String typeName, String id)
-    {
+    Map<String, Object> GetDocument(String indexName, String typeName, String id) {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         GetResponse response = _client.prepareGet(indexName, typeName, id).get();
@@ -101,8 +107,7 @@ public class ElasticSearchDataAccess {
         return response.getSource();
     }
 
-    public RestStatus DeleteDocument(String indexName, String typeName, String id)
-    {
+    RestStatus DeleteDocument(String indexName, String typeName, String id) {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         DeleteResponse response = _client.prepareDelete(indexName, typeName, id).get();
@@ -112,8 +117,7 @@ public class ElasticSearchDataAccess {
         return response.status();
     }
 
-    public long DeleteByQuery (String indexName, String field, String matchText)
-    {
+    long DeleteByQuery (String indexName, String field, String matchText) {
         /* It is possible to make this operation asynchronous */
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
@@ -127,7 +131,7 @@ public class ElasticSearchDataAccess {
         return response.getDeleted();
     }
 
-    public void UpdateDocumentById(String indexName, String typeName, String id, String updateJson) throws ExecutionException, InterruptedException {
+    void UpdateDocumentById(String indexName, String typeName, String id, String updateJson) throws ExecutionException, InterruptedException {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         UpdateRequest updateRequest = new UpdateRequest(indexName, typeName, id)
@@ -136,7 +140,7 @@ public class ElasticSearchDataAccess {
         _client.update(updateRequest).get();
     }
 
-    public void UpsertDocument(String indexName, String typeName, String id, String updateJson) throws ExecutionException, InterruptedException {
+    void UpsertDocument(String indexName, String typeName, String id, String updateJson) throws ExecutionException, InterruptedException {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         /* If the document does not exist, the content of the upsert element
@@ -152,7 +156,7 @@ public class ElasticSearchDataAccess {
         _client.update(updateRequest).get();
     }
 
-    public String[] GetMultipleDocuments(String indexName, String typeName, String idList) {
+    String[] GetMultipleDocuments(String indexName, String typeName, String idList) {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         String[] ids = idList.split(",|;");

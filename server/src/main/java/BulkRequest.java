@@ -10,7 +10,7 @@ import org.elasticsearch.client.transport.TransportClient;
 /**
  * Created by Said on 5/29/2017.
  */
-public class BulkRequest {
+class BulkRequest {
 
     private static Logger logger = LogManager.getLogger(ElasticSearchDataAccess.class.getName());
 
@@ -20,14 +20,16 @@ public class BulkRequest {
     private TransportClient _client;
     //private BulkProcessor _bulkProcessor;
 
-    public BulkRequest(TransportClient client)
+    BulkRequest(TransportClient client)
     {
+        logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
+
         _client = client;
         _bulkRequest = _client.prepareBulk();
         //_bulkProcessor = BulkProcessor.builder(_client, new )
     }
 
-    public void AddUpsertRequest(String indexName, String typeName, String id, String json)
+    void AddUpsertRequest(String indexName, String typeName, String id, String json)
     {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
@@ -41,14 +43,14 @@ public class BulkRequest {
         );
     }
 
-    public void AddDeleteRequest(String indexName, String typeName, String id)
+    void AddDeleteRequest(String indexName, String typeName, String id)
     {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
         _bulkRequest.add(_client.prepareDelete(indexName, typeName, id));
     }
 
-    public BulkResponse ExecuteBulkRequest()
+    BulkResponse ExecuteBulkRequest()
     {
         logger.trace(Thread.currentThread().getStackTrace()[1].getMethodName());
 
@@ -62,4 +64,5 @@ public class BulkRequest {
 
         return bulkResponse;
     }
+
 }
